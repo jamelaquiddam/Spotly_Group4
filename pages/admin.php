@@ -3,10 +3,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/release_noshows.php';
 require_role('DOIT Staff/Admin');
+releaseNoShows($pdo);
 
 $valid_lab_types = ['Cisco Laboratory', 'Regular Computer Laboratory'];
-$valid_statuses = ['Pending', 'Approved', 'Rejected'];
+$valid_statuses = ['Pending', 'Approved', 'Rejected', 'Cancelled', 'No-Show'];
 $filter_lab_type = trim((string) ($_GET['lab_type'] ?? ''));
 $filter_status = trim((string) ($_GET['status'] ?? ''));
 $filter_date = trim((string) ($_GET['date'] ?? ''));
@@ -40,16 +42,22 @@ $total_statement = $pdo->prepare('SELECT COUNT(*) FROM reservations');
 $total_statement->execute();
 $maintenance_statement = $pdo->prepare("SELECT COUNT(*) FROM laboratories WHERE status = 'Under Maintenance'");
 $maintenance_statement->execute();
+$noshows_today_statement = $pdo->prepare("SELECT COUNT(*) FROM reservations WHERE status = 'No-Show' AND DATE(released_at) = CURDATE()");
+$noshows_today_statement->execute();
+$cancellations_today_statement = $pdo->prepare("SELECT COUNT(*) FROM reservations WHERE status = 'Cancelled' AND DATE(cancelled_at) = CURDATE()");
+$cancellations_today_statement->execute();
 $summary = [
 	'pending' => count($pending_reservations),
 	'approved_today' => (int) $approved_today_statement->fetchColumn(),
 	'total' => (int) $total_statement->fetchColumn(),
 	'maintenance' => (int) $maintenance_statement->fetchColumn(),
+	'noshows_today' => (int) $noshows_today_statement->fetchColumn(),
+	'cancellations_today' => (int) $cancellations_today_statement->fetchColumn(),
 ];
 
 $all_query =
 	"SELECT r.reservation_id, r.date, r.start_time, r.end_time, r.purpose, r.course_section,
-			r.expected_attendees, r.status, r.created_at, u.first_name, u.last_name,
+				r.expected_attendees, r.status, r.created_at, r.checked_in_at, u.first_name, u.last_name,
 			l.lab_type, l.room_code, l.room_name
 	 FROM reservations r
 	 INNER JOIN users u ON u.user_id = r.user_id
@@ -76,7 +84,7 @@ $all_reservations = $all_statement->fetchAll();
 $laboratory_statement = $pdo->prepare('SELECT room_id, room_name, room_code, lab_type, capacity, floor, status FROM laboratories ORDER BY lab_type, room_code');
 $laboratory_statement->execute();
 $laboratories = $laboratory_statement->fetchAll();
-$user_statement = $pdo->prepare('SELECT user_id, first_name, last_name, email, role, is_active FROM users ORDER BY last_name, first_name');
+$user_statement = $pdo->prepare("SELECT u.user_id, u.first_name, u.last_name, u.email, u.role, u.is_active, (SELECT COUNT(*) FROM reservations n WHERE n.user_id = u.user_id AND n.status = 'No-Show' AND n.released_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)) AS no_show_count FROM users u ORDER BY u.last_name, u.first_name");
 $user_statement->execute();
 $managed_users = $user_statement->fetchAll();
 
@@ -94,6 +102,8 @@ require_once __DIR__ . '/../includes/header.php';
 	<div class="summary-card card"><span>Approved today</span><strong><?= $summary['approved_today'] ?></strong></div>
 	<div class="summary-card card"><span>Total reservations</span><strong><?= $summary['total'] ?></strong></div>
 	<div class="summary-card card"><span>Labs under maintenance</span><strong><?= $summary['maintenance'] ?></strong></div>
+	<div class="summary-card card"><span>No-Shows today</span><strong><?= $summary['noshows_today'] ?></strong></div>
+	<div class="summary-card card"><span>Cancellations today</span><strong><?= $summary['cancellations_today'] ?></strong></div>
 </section>
 
 <section class="admin-section card">
@@ -148,7 +158,7 @@ require_once __DIR__ . '/../includes/header.php';
 				<td><?= htmlspecialchars($reservation['purpose'], ENT_QUOTES, 'UTF-8') ?></td>
 				<td><?= htmlspecialchars($reservation['course_section'], ENT_QUOTES, 'UTF-8') ?></td>
 				<td><?= (int) $reservation['expected_attendees'] ?></td>
-				<td><span class="status-pill status-<?= htmlspecialchars(strtolower($reservation['status']), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($reservation['status'], ENT_QUOTES, 'UTF-8') ?></span></td>
+				<td><span class="status-pill status-<?= htmlspecialchars(strtolower(str_replace(' ', '-', $reservation['status'])), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($reservation['status'], ENT_QUOTES, 'UTF-8') ?></span><?php if ($reservation['status'] === 'Approved' && !$reservation['checked_in_at']): ?><button class="button button-small check-in-admin" data-reservation-id="<?= (int) $reservation['reservation_id'] ?>" type="button">Check In</button><?php elseif ($reservation['checked_in_at']): ?><span class="status-pill status-checked-in">Checked in</span><?php endif; ?></td>
 			</tr><?php endforeach; endif; ?>
 			</tbody>
 		</table>
@@ -179,8 +189,8 @@ require_once __DIR__ . '/../includes/header.php';
 		<input name="password" type="password" minlength="8" placeholder="Temporary password" required>
 		<button class="button button-primary" type="submit">Create DOIT account</button>
 	</form>
-	<div class="table-wrap"><table class="data-table admin-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Action</th></tr></thead><tbody>
-	<?php foreach ($managed_users as $managed_user): ?><tr><td><?= htmlspecialchars($managed_user['first_name'] . ' ' . $managed_user['last_name'], ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($managed_user['email'], ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($managed_user['role'], ENT_QUOTES, 'UTF-8') ?></td><td><?= $managed_user['is_active'] ? 'Active' : 'Inactive' ?></td><td><?php if ((int) $managed_user['user_id'] !== (int) $_SESSION['user_id'] && $managed_user['is_active']): ?><button class="button button-small reject-button deactivate-user" data-user-id="<?= (int) $managed_user['user_id'] ?>" type="button">Deactivate</button><?php endif; ?></td></tr><?php endforeach; ?>
+	<div class="table-wrap"><table class="data-table admin-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>No-Shows</th><th>Status</th><th>Action</th></tr></thead><tbody>
+	<?php foreach ($managed_users as $managed_user): ?><tr><td><?= htmlspecialchars($managed_user['first_name'] . ' ' . $managed_user['last_name'], ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($managed_user['email'], ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($managed_user['role'], ENT_QUOTES, 'UTF-8') ?></td><td><?= (int) $managed_user['no_show_count'] ?> no-shows / 30 days</td><td><?= $managed_user['is_active'] ? 'Active' : 'Inactive' ?></td><td><?php if ((int) $managed_user['user_id'] !== (int) $_SESSION['user_id'] && $managed_user['is_active']): ?><button class="button button-small reject-button deactivate-user" data-user-id="<?= (int) $managed_user['user_id'] ?>" type="button">Deactivate</button><?php endif; ?></td></tr><?php endforeach; ?>
 	</tbody></table></div>
 </section>
 <script>window.spotlyAdminCsrf = <?= json_encode(csrf_token(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>

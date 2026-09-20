@@ -2,7 +2,10 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/auth_check.php';
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/release_noshows.php';
 require_login();
+releaseNoShows($pdo);
 
 $page_title = 'Dashboard';
 require_once __DIR__ . '/../includes/header.php';
@@ -117,5 +120,6 @@ require_once __DIR__ . '/../includes/header.php';
 		</div>
 	</form>
 </dialog>
+<dialog id="calendar-cancel-modal" class="booking-modal"><div class="modal-header"><div><p class="eyebrow">Your reservation</p><h2>Cancel reservation?</h2></div><button id="close-calendar-cancel" class="modal-close" type="button" aria-label="Close">&times;</button></div><form id="calendar-cancel-form" class="form-stack"><input type="hidden" id="calendar-cancel-id"><div id="calendar-cancel-summary" class="booking-summary"></div><div class="form-group"><label for="calendar-cancel-reason">Optional reason</label><textarea id="calendar-cancel-reason" maxlength="255" rows="3"></textarea></div><div id="calendar-cancel-message" class="form-message"></div><div class="modal-actions"><button id="calendar-cancel-no" class="button button-outline-dark" type="button">Keep reservation</button><button class="button button-primary" type="submit">Cancel reservation</button></div></form></dialog>
 <script src="../assets/js/calendar.js"></script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

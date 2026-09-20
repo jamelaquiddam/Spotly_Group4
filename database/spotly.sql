@@ -58,9 +58,13 @@ CREATE TABLE reservations (
     purpose VARCHAR(150) NOT NULL,
     course_section VARCHAR(30) NOT NULL,
     expected_attendees INT NOT NULL,
-    status ENUM('Pending', 'Approved', 'Rejected') NOT NULL DEFAULT 'Pending',
+        status ENUM('Pending', 'Approved', 'Rejected', 'Cancelled', 'No-Show') NOT NULL DEFAULT 'Pending',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     approved_at DATETIME NULL,
+        cancelled_at DATETIME NULL,
+        cancel_reason VARCHAR(255) NULL,
+        checked_in_at DATETIME NULL,
+        released_at DATETIME NULL,
     CONSTRAINT fk_reservations_user
         FOREIGN KEY (user_id) REFERENCES users(user_id),
     CONSTRAINT fk_reservations_room

@@ -3,10 +3,13 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/release_noshows.php';
+require_once __DIR__ . '/../config/settings.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
 start_app_session();
+releaseNoShows($pdo);
 
 function reservation_response(array $payload, int $status = 200): never
 {
@@ -49,10 +52,21 @@ if (!$selected_date || $has_date_errors || $date !== $selected_date->format('Y-m
 	reservation_response(['success' => false, 'message' => 'The reservation date must be today or a future date.'], 400);
 }
 
+$no_show_statement = $pdo->prepare("SELECT COUNT(*) AS no_show_count, MAX(released_at) AS latest_no_show FROM reservations WHERE user_id = :user_id AND status = 'No-Show' AND released_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
+$no_show_statement->execute(['user_id' => $_SESSION['user_id']]);
+$no_show_summary = $no_show_statement->fetch();
+if ((int) $no_show_summary['no_show_count'] >= NO_SHOW_LIMIT_30_DAYS && $no_show_summary['latest_no_show'] && strtotime($no_show_summary['latest_no_show'] . ' +' . NO_SHOW_BLOCK_DAYS . ' days') > time()) {
+	$reservation_response(['success' => false, 'message' => 'Booking is temporarily blocked for ' . NO_SHOW_BLOCK_DAYS . ' days because you have reached the recent no-show limit.'], 403);
+}
+
 $start_minutes = reserve_time_to_minutes($start_time);
 $end_minutes = reserve_time_to_minutes($end_time);
 if ($start_minutes === null || $end_minutes === null || $end_minutes <= $start_minutes || $start_minutes < 420 || $end_minutes > 1260) {
 	reservation_response(['success' => false, 'message' => 'The time must be between 7:00 AM and 9:00 PM, with the end time after the start time.'], 400);
+}
+if ($date === date('Y-m-d')) {
+	$rounded_now = (int) (ceil((time() - strtotime('today')) / (BOOKING_START_SLOT_MINUTES * 60)) * BOOKING_START_SLOT_MINUTES);
+	if ($start_minutes < $rounded_now) reservation_response(['success' => false, 'message' => 'Today\'s reservation must start at or after the next available 30-minute slot.'], 400);
 }
 if ($purpose === '' || strlen($purpose) > 150) {
 	reservation_response(['success' => false, 'message' => 'Purpose is required and must be 150 characters or fewer.'], 400);

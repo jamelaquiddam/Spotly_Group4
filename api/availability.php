@@ -3,10 +3,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/release_noshows.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
 start_app_session();
+releaseNoShows($pdo);
 if (!isset($_SESSION['user_id'])) {
 	http_response_code(401);
 	echo json_encode(['success' => false, 'message' => 'Please log in to view laboratory availability.']);
@@ -124,7 +126,7 @@ if (!$room) {
 }
 
 $reservation_statement = $pdo->prepare(
-	"SELECT reservation_id, date, start_time, end_time, status, course_section,
+		"SELECT reservation_id, date, start_time, end_time, status, course_section, checked_in_at,
 			CASE WHEN user_id = :current_user THEN 1 ELSE 0 END AS is_mine
 	 FROM reservations
 	 WHERE room_id = :room_id

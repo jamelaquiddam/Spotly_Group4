@@ -36,6 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		} elseif (login_attempt_count($pdo, $email, $ip_address) >= 5) {
 			$errors[] = 'Too many failed attempts. Please try again in 15 minutes.';
 		} elseif ($password === '') {
+			$errors[] = $generic_error;
+		} else {
 			$statement = $pdo->prepare('SELECT user_id, first_name, last_name, email, password_hash, role, is_verified, is_active FROM users WHERE email = :email LIMIT 1');
 			$statement->execute(['email' => $email]);
 			$user = $statement->fetch();

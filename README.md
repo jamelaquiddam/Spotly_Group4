@@ -31,6 +31,18 @@ The default local database settings are host `localhost`, user `root`, and an em
 
 These are development/demo accounts only. Passwords are stored as `password_hash()` hashes in the SQL file, and these seed accounts are already verified.
 
+## Cancellation and No-Show Release
+
+Import `database/phase9_migration.sql` for an existing Phase 8 database. Users can cancel their own Pending or Approved reservation before it starts; the record remains with status `Cancelled`. Approved cancellations notify DOIT. Approved reservations must be checked in from 10 minutes before the start through 20 minutes after the start. Otherwise `releaseNoShows()` changes them to `No-Show`, records `released_at`, notifies the user, and makes the remaining room time available.
+
+The shared values are in `config/settings.php`: the 20-minute grace period, the 3-no-show threshold in 30 days, the 7-day booking block, and the 30-minute booking slot. The release function runs lazily when availability, booking, reservations, or the dashboard is opened. It can also be run manually:
+
+```text
+C:\xampp\php\php.exe C:\xampp\htdocs\spotly\cli\release_noshows.php
+```
+
+For Windows Task Scheduler, create a basic task that repeats every 1 minute, starts in `C:\xampp\htdocs\spotly`, and runs `C:\xampp\php\php.exe` with the argument `C:\xampp\htdocs\spotly\cli\release_noshows.php`.
+
 ## Mapua Email and Verification
 
 - Students must use exactly `@mymail.mapua.edu.ph`.
@@ -129,3 +141,14 @@ When an administrator approves a request, the room row is locked again and the o
 | ADM-05 | Lab status | Change a room to Under Maintenance | Students cannot book it and calendar slots turn gray |
 | UI-01 | Mobile layout | Use a narrow browser viewport | Calendar becomes single-day and tables remain usable with scrolling |
 | UI-02 | Empty states | Filter to no reservations/notifications | Friendly empty-state message appears |
+| P9-01 | Cancel Pending | Cancel before start | Record remains Cancelled and slot becomes available |
+| P9-02 | Cancel Approved | Cancel before start | Record remains Cancelled, slot becomes available, DOIT is notified |
+| P9-03 | Late cancellation | Submit cancellation after start through DevTools | Server rejects it |
+| P9-04 | Other owner cancellation | Submit another user’s reservation ID | Server rejects it |
+| P9-05 | Check in at 15 minutes | Check in during grace window | Check-in succeeds and shows blue Checked in |
+| P9-06 | Check in at 21 minutes | Check in after grace | Server rejects and reservation is No-Show |
+| P9-07 | Early check-in | Check in more than 10 minutes before start | Server rejects it |
+| P9-08 | Rebook released time | Run release, then book remaining time as another user | Booking is accepted as Pending |
+| P9-09 | Earlier-than-now booking | Submit today’s start before the next rounded slot | Server rejects it |
+| P9-10 | No-show booking block | Create 3 recent no-shows, then book | Booking is blocked for 7 days |
+| P9-11 | Idempotent release | Run `release_noshows.php` twice | No duplicate status change or notification |

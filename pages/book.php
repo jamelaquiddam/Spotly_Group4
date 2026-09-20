@@ -11,6 +11,7 @@ require_once __DIR__ . '/../includes/header.php';
 	<p class="eyebrow">Guided booking</p>
 	<h1>Book a laboratory</h1>
 	<p class="muted">Choose a room and time, then submit your reservation request for DOIT review.</p>
+	<p class="alert alert-info">Reservations are released if you do not check in within 20 minutes of the start time.</p>
 </section>
 
 <section class="booking-flow card">
@@ -91,6 +92,7 @@ require_once __DIR__ . '/../includes/header.php';
 		<section class="booking-step" data-step="4">
 			<p class="eyebrow">Step 4</p>
 			<h2>Confirm reservation request</h2>
+			<p class="alert alert-info">Reservations are released if you do not check in within 20 minutes of the start time.</p>
 			<dl id="booking-summary" class="booking-summary-list"></dl>
 			<div id="step-form-message" class="form-message" aria-live="polite"></div>
 			<div class="step-actions">

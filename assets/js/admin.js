@@ -57,4 +57,7 @@
 			window.location.reload();
 		} catch (error) { message.textContent = error.message; }
 	}));
+	document.querySelectorAll('.check-in-admin').forEach((button) => button.addEventListener('click', async () => {
+		try { const data = await performAction({ action: 'check_in', reservation_id: button.dataset.reservationId }); message.textContent = data.message; window.location.reload(); } catch (error) { message.textContent = error.message; }
+	}));
 }());

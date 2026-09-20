@@ -4,9 +4,12 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/email_rules.php';
+require_once __DIR__ . '/../includes/release_noshows.php';
+require_once __DIR__ . '/../config/settings.php';
 
 header('Content-Type: application/json; charset=utf-8');
 start_app_session();
+releaseNoShows($pdo);
 
 function admin_response(array $payload, int $status = 200): never
 {
@@ -34,14 +37,14 @@ if (!verify_csrf_token($input['csrf_token'] ?? null)) {
 $action = (string) ($input['action'] ?? '');
 $reservation_id = filter_var($input['reservation_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
-if (in_array($action, ['approve', 'reject'], true) && $reservation_id === false) {
+	if (in_array($action, ['approve', 'reject', 'check_in'], true) && $reservation_id === false) {
 	admin_response(['success' => false, 'message' => 'A valid reservation is required.'], 400);
 }
 
 try {
 	$pdo->beginTransaction();
 
-	if (in_array($action, ['approve', 'reject'], true)) {
+	if (in_array($action, ['approve', 'reject', 'check_in'], true)) {
 		$lookup_statement = $pdo->prepare(
 			'SELECT r.reservation_id, r.user_id, r.room_id, r.date, r.start_time, r.end_time,
 					r.status, l.room_code
@@ -57,6 +60,22 @@ try {
 		if ($reservation['status'] !== 'Pending') {
 			$pdo->rollBack();
 			admin_response(['success' => false, 'message' => 'Only pending reservations can be processed.'], 409);
+		}
+
+		if ($action === 'check_in') {
+			$room_lock = $pdo->prepare('SELECT status FROM laboratories WHERE room_id = :room_id FOR UPDATE');
+			$room_lock->execute(['room_id' => $reservation['room_id']]);
+			$reservation_lock = $pdo->prepare('SELECT status FROM reservations WHERE reservation_id = :reservation_id FOR UPDATE');
+			$reservation_lock->execute(['reservation_id' => $reservation_id]);
+			$start = strtotime($reservation['date'] . ' ' . $reservation['start_time']);
+			if ($reservation_lock->fetchColumn() !== 'Approved' || time() < $start - 600 || time() > $start + (GRACE_PERIOD_MINUTES * 60)) {
+				$pdo->rollBack();
+				admin_response(['success' => false, 'message' => 'This reservation is outside its check-in window.'], 409);
+			}
+			$check_in = $pdo->prepare('UPDATE reservations SET checked_in_at = NOW() WHERE reservation_id = :reservation_id AND status = \'Approved\' AND checked_in_at IS NULL');
+			$check_in->execute(['reservation_id' => $reservation_id]);
+			$pdo->commit();
+			admin_response(['success' => true, 'message' => 'Reservation marked as checked in.']);
 		}
 
 		if ($action === 'approve') {

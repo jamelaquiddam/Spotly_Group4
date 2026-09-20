@@ -37,6 +37,12 @@
 		,bookingAvailability: document.querySelector('#booking-availability')
 		,bookingFormMessage: document.querySelector('#booking-form-message')
 		,submitBooking: document.querySelector('#submit-booking')
+		,calendarCancelModal: document.querySelector('#calendar-cancel-modal')
+		,calendarCancelForm: document.querySelector('#calendar-cancel-form')
+		,calendarCancelId: document.querySelector('#calendar-cancel-id')
+		,calendarCancelSummary: document.querySelector('#calendar-cancel-summary')
+		,calendarCancelReason: document.querySelector('#calendar-cancel-reason')
+		,calendarCancelMessage: document.querySelector('#calendar-cancel-message')
 	};
 
 	function formatDate(date) {
@@ -231,14 +237,14 @@
 		const slotStart = timeToMinutes(time);
 		const slotEnd = slotStart + 30;
 		const reservation = state.reservations.find((item) => item.date === date && timeToMinutes(item.start_time) < slotEnd && timeToMinutes(item.end_time) > slotStart);
-		const past = new Date(`${date}T${time}:00`) <= new Date();
+		const past = new Date(`${date}T${time}:00`) < new Date();
 		let slotType = 'available';
 		let message = 'Available. Select this slot as a start or end time.';
 		if (roomIsUnavailable() || past) {
 			slotType = 'unavailable';
 			message = roomIsUnavailable() ? `${state.laboratory.status}. This room cannot be booked.` : 'This time has already passed.';
 		} else if (reservation) {
-			slotType = reservation.status === 'Approved' ? 'approved' : 'pending';
+			slotType = reservation.status === 'Approved' ? (reservation.is_mine && reservation.checked_in_at ? 'checked-in' : 'approved') : 'pending';
 			message = reservation.status === 'Approved' ? 'Booked by an approved reservation.' : 'Pending approval. This time cannot be selected.';
 		}
 		if (state.selectionStart && isSelected(date, time)) slotType += ' selected';
@@ -250,11 +256,33 @@
 		slot.title = message;
 		slot.setAttribute('aria-label', `${date} ${formatTime(`${time}:00`)}: ${message}`);
 		if (reservation && time === reservation.start_time.slice(0, 5)) {
-			slot.innerHTML = `<span class="reservation-time">${formatTime(reservation.start_time)}</span><span>${escapeHtml(reservation.course_section)}</span>${reservation.is_mine ? '<b class="mine-badge">Mine</b>' : ''}`;
+				slot.innerHTML = `<span class="reservation-time">${formatTime(reservation.start_time)}</span><span>${escapeHtml(reservation.course_section)}</span>${reservation.is_mine ? '<b class="mine-badge">Mine</b>' : ''}${reservation.is_mine && reservation.checked_in_at ? '<b class="checked-badge">Checked in</b>' : ''}`;
 		}
 		if (slotType.startsWith('available')) slot.addEventListener('click', () => selectSlot(slot));
+		else if (reservation && reservation.is_mine && ['Pending', 'Approved'].includes(reservation.status) && new Date(`${reservation.date}T${reservation.start_time}`) > new Date()) slot.addEventListener('click', () => openCalendarCancel(reservation));
 		else slot.addEventListener('click', () => { elements.calendarMessage.textContent = message; });
 		return slot;
+	}
+
+	function openCalendarCancel(reservation) {
+		elements.calendarCancelId.value = reservation.reservation_id;
+		elements.calendarCancelSummary.innerHTML = `<strong>${escapeHtml(reservation.course_section)}</strong><span>${escapeHtml(reservation.date)} | ${escapeHtml(formatTime(reservation.start_time))} - ${escapeHtml(formatTime(reservation.end_time))}</span>`;
+		elements.calendarCancelReason.value = '';
+		elements.calendarCancelMessage.textContent = '';
+		elements.calendarCancelModal.showModal();
+	}
+
+	async function submitCalendarCancel(event) {
+		event.preventDefault();
+		try {
+			const csrf = document.querySelector('#booking-form input[name="csrf_token"]').value;
+			const response = await fetch('../api/reservations.php', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ action: 'cancel', reservation_id: elements.calendarCancelId.value, reason: elements.calendarCancelReason.value, csrf_token: csrf }) });
+			const data = await response.json();
+			if (!response.ok || !data.success) throw new Error(data.message || 'Unable to cancel reservation.');
+			elements.calendarCancelModal.close();
+			elements.calendarMessage.textContent = data.message;
+			await loadSchedule();
+		} catch (error) { elements.calendarCancelMessage.textContent = error.message; }
 	}
 
 	function selectSlot(slot) {
@@ -391,6 +419,9 @@
 	elements.bookingModal.addEventListener('click', (event) => {
 		if (event.target === elements.bookingModal) closeBookingModal();
 	});
+	elements.calendarCancelForm.addEventListener('submit', submitCalendarCancel);
+	document.querySelector('#calendar-cancel-no').addEventListener('click', () => elements.calendarCancelModal.close());
+	document.querySelector('#close-calendar-cancel').addEventListener('click', () => elements.calendarCancelModal.close());
 	window.addEventListener('resize', renderGrid);
 
 	elements.calendarDate.value = formatDate(state.selectedDate);
