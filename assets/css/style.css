@@ -12,6 +12,16 @@
 	--shadow: 0 18px 45px rgba(18, 59, 80, 0.10);
 }
 
+:root[data-theme='dark'] {
+	--ink: #e5edf0;
+	--muted: #a9bbc1;
+	--line: #36525f;
+	--surface: #1d3039;
+	--background: #10222b;
+	--navy: #091a23;
+	--shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -21,6 +31,19 @@ body {
 	font-family: Georgia, 'Times New Roman', serif;
 	line-height: 1.5;
 }
+
+:root[data-theme='dark'] body { background: var(--background); }
+:root[data-theme='dark'] input,
+:root[data-theme='dark'] select,
+:root[data-theme='dark'] textarea { color: var(--ink); border-color: var(--line); background: #233b46; }
+:root[data-theme='dark'] .table-wrap,
+:root[data-theme='dark'] .calendar-grid { background: var(--surface); }
+:root[data-theme='dark'] .calendar-time { background: #182d37; }
+:root[data-theme='dark'] .catalog-table th,
+:root[data-theme='dark'] .data-table th { background: #28414c; }
+:root[data-theme='dark'] .catalog-table tbody tr:hover,
+:root[data-theme='dark'] .catalog-table tbody tr.selected-row { background: #294852; }
+:root[data-theme='dark'] .site-footer { background: #0b1b23; }
 
 a { color: var(--teal-dark); font-weight: 700; }
 a:hover { color: var(--coral); }
@@ -183,14 +206,17 @@ input:focus, select:focus { outline: 3px solid rgba(22, 140, 131, 0.18); border-
 .alert-success { color: #216a48; border: 1px solid #b9dfc7; background: #eaf7ee; }
 .admin-user-form { margin-bottom: 22px; }
 .admin-user-form input { min-width: 0; }
-.auth-page { min-height: 100vh; background: radial-gradient(circle at top right, #dcefee 0, var(--background) 42%); }
-.auth-shell { display: grid; place-items: center; min-height: 100vh; padding: 35px 20px; }
+.auth-page { position: relative; min-height: 100vh; overflow-x: hidden; overflow-y: auto; background: var(--navy); }
+.auth-page::before { position: absolute; z-index: 0; inset: -24px; content: ''; background: linear-gradient(115deg, rgba(18, 59, 80, 0.78), rgba(18, 59, 80, 0.38)), url('../img/mapua-bg.jpg.jpg') center / cover no-repeat; filter: blur(7px); transform: scale(1.04); }
+.auth-shell { position: relative; z-index: 1; display: grid; place-items: center; min-height: 100vh; padding: 35px 20px; }
 .auth-card { width: min(100%, 460px); padding: 42px; }
 .auth-card-wide { width: min(100%, 720px); }
 .auth-brand { display: inline-block; margin-bottom: 45px; color: var(--navy); }
 .auth-footer { margin: 25px 0 0; text-align: center; color: var(--muted); }
 .site-footer { padding: 20px 0; color: var(--muted); background: #e7eff0; font-size: 0.85rem; }
 .site-footer p { margin: 0; }
+.theme-toggle { position: fixed; z-index: 10; right: 20px; bottom: 20px; min-width: 72px; padding: 9px 13px; border: 1px solid var(--line); border-radius: 20px; color: var(--ink); background: var(--surface); box-shadow: var(--shadow); font: 700 0.78rem Arial, sans-serif; cursor: pointer; }
+.theme-toggle:hover { color: #fff; border-color: var(--teal); background: var(--teal); }
 
 @media (max-width: 850px) {
 	.navbar { flex-wrap: wrap; gap: 14px 20px; padding: 17px 0; }
@@ -223,39 +249,4 @@ input:focus, select:focus { outline: 3px solid rgba(22, 140, 131, 0.18); border-
 	.filter-control { width: 100%; }
 	.notification-item { grid-template-columns: 10px 1fr; }
 	.notification-item form { grid-column: 2; }
-}
-
-/* ===== Blurred background (only the background is blurred) ===== */
-body {
-  position: relative;
-  min-height: 100vh;
-  background-color: #0b2a4a; /* fallback while the image loads */
-}
-
-/* The blurred image layer, sits BEHIND all content */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  background: url("../img/mapua-bg.jpg") center / cover no-repeat;
-  filter: blur(8px);
-  transform: scale(1.1); /* hides the soft/white edges the blur creates */
-}
-
-/* Optional dark-blue tint so text and cards stay readable */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background: rgba(10, 35, 66, 0.45);
-}
-
-.card,
-.calendar-wrapper,
-.login-box,
-table {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
 }

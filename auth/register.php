@@ -71,4 +71,4 @@ function escape_register_value(string $value): string { return htmlspecialchars(
 const roleField=document.querySelector('#role'),emailField=document.querySelector('#email'),emailHint=document.querySelector('#email-hint');
 function updateEmailRule(){const student=roleField.value==='Student';emailField.placeholder=student?'juan.delacruz@mymail.mapua.edu.ph':'juan.delacruz@mapua.edu.ph';emailHint.textContent=student?'Students must use @mymail.mapua.edu.ph.':'Faculty must use @mapua.edu.ph.';}
 roleField.addEventListener('change',updateEmailRule);document.querySelector('form').addEventListener('submit',event=>{const value=emailField.value.trim().toLowerCase(),at=value.lastIndexOf('@'),domain=at<0?'':value.slice(at+1),expected=roleField.value==='Student'?'mymail.mapua.edu.ph':'mapua.edu.ph';if(at<1||domain!==expected){event.preventDefault();emailField.setCustomValidity(`Use your @${expected} email for this role.`);emailField.reportValidity();}else emailField.setCustomValidity('');});updateEmailRule();
-</script></body></html>
+</script><script src="../assets/js/main.js"></script></body></html>
