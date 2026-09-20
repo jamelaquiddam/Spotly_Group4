@@ -224,3 +224,38 @@ input:focus, select:focus { outline: 3px solid rgba(22, 140, 131, 0.18); border-
 	.notification-item { grid-template-columns: 10px 1fr; }
 	.notification-item form { grid-column: 2; }
 }
+
+/* ===== Blurred background (only the background is blurred) ===== */
+body {
+  position: relative;
+  min-height: 100vh;
+  background-color: #0b2a4a; /* fallback while the image loads */
+}
+
+/* The blurred image layer, sits BEHIND all content */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background: url("../img/mapua-bg.jpg") center / cover no-repeat;
+  filter: blur(8px);
+  transform: scale(1.1); /* hides the soft/white edges the blur creates */
+}
+
+/* Optional dark-blue tint so text and cards stay readable */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: rgba(10, 35, 66, 0.45);
+}
+
+.card,
+.calendar-wrapper,
+.login-box,
+table {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+}
