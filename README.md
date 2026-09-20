@@ -14,7 +14,7 @@ Spotly is a PHP/MySQL laboratory reservation system for SOIT Cisco Laboratories 
 2. Open the XAMPP Control Panel.
 3. Start **Apache** and **MySQL**.
 4. Open `http://localhost/phpmyadmin`.
-5. Select **Import**, choose `database/spotly.sql`, and click **Import**.
+5. For a new database, select **Import**, choose `database/spotly.sql`, and click **Import**. For an existing Phase 1-7 database, import `database/phase8_migration.sql` instead.
 6. Confirm that the `spotly` database contains `users`, `laboratories`, `reservations`, and `notifications`.
 7. Open `http://localhost/spotly` in a browser.
 
@@ -24,12 +24,30 @@ The default local database settings are host `localhost`, user `root`, and an em
 
 | Role | Email | Password |
 | --- | --- | --- |
-| DOIT Staff/Admin | dana.santos@soit.edu | `Admin@123` |
-| Faculty | felix.reyes@soit.edu | `Faculty@123` |
-| Student | ari.cruz@student.soit.edu | `Student@123` |
-| Student | bea.lim@student.soit.edu | `Student2@123` |
+| DOIT Staff/Admin | doit.admin@mapua.edu.ph | `Admin@123` |
+| Faculty | faculty1@mapua.edu.ph | `Faculty@123` |
+| Student | student1@mymail.mapua.edu.ph | `Student@123` |
+| Student | student2@mymail.mapua.edu.ph | `Student2@123` |
 
-These are development/demo accounts only. Passwords are stored as `password_hash()` hashes in the SQL file.
+These are development/demo accounts only. Passwords are stored as `password_hash()` hashes in the SQL file, and these seed accounts are already verified.
+
+## Mapua Email and Verification
+
+- Students must use exactly `@mymail.mapua.edu.ph`.
+- Faculty and DOIT Staff/Admin must use exactly `@mapua.edu.ph`.
+- Public registration allows only Student and Faculty. DOIT accounts are created by an existing DOIT administrator or by the SQL seed.
+- New accounts are unverified until the 24-hour verification link is opened.
+- `database/phase8_migration.sql` ends with a query listing existing users whose email domain does not match their role. Correct those emails to an authorized Mapua address, deactivate them with the admin Manage Users page, or remove them according to your school’s data policy. Do not silently promote an invalid account.
+
+## SMTP / DEV_MODE
+
+`config/mail.php` contains the SMTP settings and the `DEV_MODE` switch. It is `true` for localhost demos, so registration displays a verification link on screen instead of sending email. Set `DEV_MODE` to `false` in production, fill in the SMTP host, port, username, app password, encryption, and sender address, and install PHPMailer with:
+
+```text
+composer install
+```
+
+For Gmail, use an app password rather than your normal account password. Never commit SMTP credentials. With `DEV_MODE` false, the app loads PHPMailer from `vendor/autoload.php` and sends verification mail through SMTP.
 
 ## Folder Structure
 
@@ -43,6 +61,7 @@ spotly/
 	assets/css/style.css          Shared responsive styling
 	assets/js/                    Calendar, booking, reservations, and admin scripts
 	includes/                     Session guards and shared layout
+	composer.json                 PHPMailer dependency definition
 	index.php                     Session-aware entry redirect
 ```
 
@@ -66,6 +85,8 @@ When an administrator approves a request, the room row is locked again and the o
 - Reservation APIs return only the logged-in user’s reservation details or non-private room schedule data.
 - User-facing PHP output is escaped with `htmlspecialchars()`; client-rendered dynamic text is escaped before HTML insertion.
 - Passwords use `password_hash()` and `password_verify()`.
+- Login attempts are limited to five failures per email/IP combination within 15 minutes.
+- Sessions use strict mode, HttpOnly cookies, SameSite=Lax, and session ID regeneration after login.
 
 ## Test Plan Checklist
 
@@ -76,6 +97,14 @@ When an administrator approves a request, the room row is locked again and the o
 | AUTH-03 | Login routing | Log in as Student, Faculty, and Admin | Student/Faculty reach dashboard; Admin reaches admin page |
 | AUTH-04 | Logout | Click Logout | Session is destroyed and login page appears |
 | AUTH-05 | CSRF rejection | Remove or alter a form/API CSRF token | Request is rejected |
+| AUTH-06 | Student wrong domain | Register with `user@gmail.com` | Rejected with the student Mapua-domain message |
+| AUTH-07 | Student faculty-domain mismatch | Register Student with `user@mapua.edu.ph` | Rejected |
+| AUTH-08 | Faculty student-domain mismatch | Register Faculty with `user@mymail.mapua.edu.ph` | Rejected |
+| AUTH-09 | Malicious domain suffix | Register with `x@mymail.mapua.edu.ph.evil.com` | Rejected by exact domain comparison |
+| AUTH-10 | Uppercase normalization | Register `JUAN@MYMAIL.MAPUA.EDU.PH` as Student | Accepted and stored lowercase |
+| AUTH-11 | Unverified login | Try logging in before opening verification link | Login blocked |
+| AUTH-12 | Public admin escalation | Add `DOIT Staff/Admin` to the form in DevTools and submit | Server rejects the role |
+| AUTH-13 | Login lockout | Submit five wrong passwords for one email/IP | Temporary 15-minute lockout message appears |
 | CAL-01 | Load calendar | Open dashboard while logged in | Room list and Mon-Sat calendar load without page reload |
 | CAL-02 | Filter rooms | Change lab type | Room dropdown and catalog show only that type |
 | CAL-03 | Approved display | View a seeded approved reservation | Slot is red and shows time/course section only |

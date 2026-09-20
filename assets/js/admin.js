@@ -40,4 +40,21 @@
 			message.textContent = error.message;
 		}
 	}));
+	const createForm = document.querySelector('#create-doit-form');
+	if (createForm) createForm.addEventListener('submit', async (event) => {
+		event.preventDefault();
+		try {
+			const data = await performAction({ action: 'create_user', ...Object.fromEntries(new FormData(createForm).entries()) });
+			message.textContent = data.message;
+			window.location.reload();
+		} catch (error) { message.textContent = error.message; }
+	});
+	document.querySelectorAll('.deactivate-user').forEach((button) => button.addEventListener('click', async () => {
+		if (!window.confirm('Deactivate this account?')) return;
+		try {
+			const data = await performAction({ action: 'deactivate_user', user_id: button.dataset.userId });
+			message.textContent = data.message;
+			window.location.reload();
+		} catch (error) { message.textContent = error.message; }
+	}));
 }());

@@ -76,6 +76,9 @@ $all_reservations = $all_statement->fetchAll();
 $laboratory_statement = $pdo->prepare('SELECT room_id, room_name, room_code, lab_type, capacity, floor, status FROM laboratories ORDER BY lab_type, room_code');
 $laboratory_statement->execute();
 $laboratories = $laboratory_statement->fetchAll();
+$user_statement = $pdo->prepare('SELECT user_id, first_name, last_name, email, role, is_active FROM users ORDER BY last_name, first_name');
+$user_statement->execute();
+$managed_users = $user_statement->fetchAll();
 
 $page_title = 'Admin';
 require_once __DIR__ . '/../includes/header.php';
@@ -163,6 +166,22 @@ require_once __DIR__ . '/../includes/header.php';
 			<td><select class="lab-status-select" data-room-id="<?= (int) $laboratory['room_id'] ?>" aria-label="Status for <?= htmlspecialchars($laboratory['room_code'], ENT_QUOTES, 'UTF-8') ?>"><option>Available</option><option <?= $laboratory['status'] === 'Under Maintenance' ? 'selected' : '' ?>>Under Maintenance</option><option <?= $laboratory['status'] === 'Inactive' ? 'selected' : '' ?>>Inactive</option></select></td>
 		</tr><?php endforeach; ?></tbody></table>
 	</div>
+</section>
+<section class="admin-section card">
+	<div class="section-heading"><div><p class="eyebrow">Account access</p><h2>Manage Users</h2></div></div>
+	<form id="create-doit-form" class="form-grid admin-user-form">
+		<input type="hidden" name="role" value="DOIT Staff/Admin">
+		<input name="student_employee_no" maxlength="20" placeholder="Employee no." required>
+		<input name="first_name" maxlength="50" placeholder="First name" required>
+		<input name="last_name" maxlength="50" placeholder="Last name" required>
+		<input name="email" type="email" placeholder="admin@mapua.edu.ph" required>
+		<input name="department" maxlength="100" placeholder="Department" required>
+		<input name="password" type="password" minlength="8" placeholder="Temporary password" required>
+		<button class="button button-primary" type="submit">Create DOIT account</button>
+	</form>
+	<div class="table-wrap"><table class="data-table admin-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Action</th></tr></thead><tbody>
+	<?php foreach ($managed_users as $managed_user): ?><tr><td><?= htmlspecialchars($managed_user['first_name'] . ' ' . $managed_user['last_name'], ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($managed_user['email'], ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($managed_user['role'], ENT_QUOTES, 'UTF-8') ?></td><td><?= $managed_user['is_active'] ? 'Active' : 'Inactive' ?></td><td><?php if ((int) $managed_user['user_id'] !== (int) $_SESSION['user_id'] && $managed_user['is_active']): ?><button class="button button-small reject-button deactivate-user" data-user-id="<?= (int) $managed_user['user_id'] ?>" type="button">Deactivate</button><?php endif; ?></td></tr><?php endforeach; ?>
+	</tbody></table></div>
 </section>
 <script>window.spotlyAdminCsrf = <?= json_encode(csrf_token(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
 <script src="../assets/js/admin.js"></script>

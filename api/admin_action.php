@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/email_rules.php';
 
 header('Content-Type: application/json; charset=utf-8');
 start_app_session();
@@ -148,6 +149,51 @@ try {
 		}
 		$pdo->commit();
 		admin_response(['success' => true, 'message' => 'Laboratory status updated.']);
+	}
+
+	if ($action === 'create_user') {
+		$role = trim((string) ($input['role'] ?? ''));
+		$email = strtolower(trim((string) ($input['email'] ?? '')));
+		$student_employee_no = trim((string) ($input['student_employee_no'] ?? ''));
+		$first_name = trim((string) ($input['first_name'] ?? ''));
+		$last_name = trim((string) ($input['last_name'] ?? ''));
+		$department = trim((string) ($input['department'] ?? ''));
+		$password = (string) ($input['password'] ?? '');
+		if ($role !== 'DOIT Staff/Admin' || !$email || !$first_name || !$last_name || !$department || strlen($student_employee_no) > 20 || strlen($password) < 8) {
+			$pdo->rollBack();
+			admin_response(['success' => false, 'message' => 'Complete the DOIT account fields with a password of at least 8 characters.'], 400);
+		}
+		$email_check = validateMapuaEmail($email, $role);
+		if (!$email_check['valid']) {
+			$pdo->rollBack();
+			admin_response(['success' => false, 'message' => $email_check['message']], 400);
+		}
+		$duplicate = $pdo->prepare('SELECT user_id FROM users WHERE email = :email LIMIT 1');
+		$duplicate->execute(['email' => $email_check['email']]);
+		if ($duplicate->fetch()) {
+			$pdo->rollBack();
+			admin_response(['success' => false, 'message' => 'An account with that email already exists.'], 409);
+		}
+		$create = $pdo->prepare('INSERT INTO users (student_employee_no, first_name, last_name, email, password_hash, role, department, is_verified, is_active) VALUES (:student_employee_no, :first_name, :last_name, :email, :password_hash, :role, :department, 1, 1)');
+		$create->execute(['student_employee_no' => $student_employee_no, 'first_name' => $first_name, 'last_name' => $last_name, 'email' => $email_check['email'], 'password_hash' => password_hash($password, PASSWORD_DEFAULT), 'role' => $role, 'department' => $department]);
+		$pdo->commit();
+		admin_response(['success' => true, 'message' => 'DOIT Staff/Admin account created.']);
+	}
+
+	if ($action === 'deactivate_user') {
+		$user_id = filter_var($input['user_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+		if ($user_id === false || $user_id === (int) $_SESSION['user_id']) {
+			$pdo->rollBack();
+			admin_response(['success' => false, 'message' => 'Choose another account to deactivate.'], 400);
+		}
+		$deactivate = $pdo->prepare('UPDATE users SET is_active = 0 WHERE user_id = :user_id');
+		$deactivate->execute(['user_id' => $user_id]);
+		if ($deactivate->rowCount() === 0) {
+			$pdo->rollBack();
+			admin_response(['success' => false, 'message' => 'Account not found or already inactive.'], 404);
+		}
+		$pdo->commit();
+		admin_response(['success' => true, 'message' => 'Account deactivated.']);
 	}
 
 	$pdo->rollBack();

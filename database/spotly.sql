@@ -5,6 +5,7 @@ CREATE DATABASE IF NOT EXISTS spotly
 USE spotly;
 
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS login_attempts;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS reservations;
 DROP TABLE IF EXISTS laboratories;
@@ -20,7 +21,20 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('Student', 'Faculty', 'DOIT Staff/Admin') NOT NULL,
     department VARCHAR(100) NOT NULL,
+    is_verified BOOLEAN NOT NULL DEFAULT 0,
+    verification_token VARCHAR(64) NULL,
+    token_expires_at DATETIME NULL,
+    is_active BOOLEAN NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE login_attempts (
+    attempt_id INT PRIMARY KEY AUTO_INCREMENT,
+    email VARCHAR(100) NOT NULL,
+    ip_address VARCHAR(45) NOT NULL,
+    failed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_login_attempts_email_time (email, failed_at),
+    INDEX idx_login_attempts_ip_time (ip_address, failed_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE laboratories (
@@ -69,12 +83,12 @@ CREATE TABLE notifications (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO users
-    (student_employee_no, first_name, last_name, email, password_hash, role, department)
+    (student_employee_no, first_name, last_name, email, password_hash, role, department, is_verified, is_active)
 VALUES
-    ('DOIT-001', 'Dana', 'Santos', 'dana.santos@soit.edu', '$2y$12$duGNOcfO7PqAjtT4A4yeVumlMbH5l8ibAZLBA51EX/sUP5styoAzC', 'DOIT Staff/Admin', 'DOIT'),
-    ('FAC-001', 'Felix', 'Reyes', 'felix.reyes@soit.edu', '$2y$12$cmlxhnj7GBHA.yrvdps7Ous/XKTtGOSx4a48Ojky8wy6dvfcqUg56', 'Faculty', 'School of Information Technology'),
-    ('2024-0001', 'Ari', 'Cruz', 'ari.cruz@student.soit.edu', '$2y$12$Eh.e8OMM5nhW9T0o5EuD/e7Usbev9Pm14qcTQ9eZgReYMIpJiXXRK', 'Student', 'Information Technology'),
-    ('2024-0002', 'Bea', 'Lim', 'bea.lim@student.soit.edu', '$2y$12$cJrrLWjxT6.C9QZZBgl10ulaNrstaxZsrXlVs7hKwM.4rT8pOPHxG', 'Student', 'Information Technology');
+    ('DOIT-001', 'Dana', 'Santos', 'doit.admin@mapua.edu.ph', '$2y$12$duGNOcfO7PqAjtT4A4yeVumlMbH5l8ibAZLBA51EX/sUP5styoAzC', 'DOIT Staff/Admin', 'DOIT', 1, 1),
+    ('FAC-001', 'Felix', 'Reyes', 'faculty1@mapua.edu.ph', '$2y$12$cmlxhnj7GBHA.yrvdps7Ous/XKTtGOSx4a48Ojky8wy6dvfcqUg56', 'Faculty', 'School of Information Technology', 1, 1),
+    ('2024-0001', 'Ari', 'Cruz', 'student1@mymail.mapua.edu.ph', '$2y$12$Eh.e8OMM5nhW9T0o5EuD/e7Usbev9Pm14qcTQ9eZgReYMIpJiXXRK', 'Student', 'Information Technology', 1, 1),
+    ('2024-0002', 'Bea', 'Lim', 'student2@mymail.mapua.edu.ph', '$2y$12$cJrrLWjxT6.C9QZZBgl10ulaNrstaxZsrXlVs7hKwM.4rT8pOPHxG', 'Student', 'Information Technology', 1, 1);
 
 INSERT INTO laboratories
     (room_name, room_code, lab_type, capacity, floor, status)

@@ -173,6 +173,10 @@ input:focus, select:focus { outline: 3px solid rgba(22, 140, 131, 0.18); border-
 .alert p { margin: 0; }
 .alert p + p { margin-top: 5px; }
 .alert-error { color: var(--error); border: 1px solid #e5b4b4; background: #fff4f2; }
+.alert-info { color: var(--navy); border: 1px solid #b8d6df; background: #edf8fb; }
+.alert-success { color: #216a48; border: 1px solid #b9dfc7; background: #eaf7ee; }
+.admin-user-form { margin-bottom: 22px; }
+.admin-user-form input { min-width: 0; }
 .auth-page { min-height: 100vh; background: radial-gradient(circle at top right, #dcefee 0, var(--background) 42%); }
 .auth-shell { display: grid; place-items: center; min-height: 100vh; padding: 35px 20px; }
 .auth-card { width: min(100%, 460px); padding: 42px; }
