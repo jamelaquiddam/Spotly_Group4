@@ -1,12 +1,13 @@
 <?php
 declare(strict_types=1);
 
-$host = 'localhost';
+$host = '127.0.0.1';
+$port = 3308;
 $dbname = 'spotly';
 $username = 'root';
 $password = '';
 
-$dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
+$dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
 
 $options = [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -18,5 +19,5 @@ try {
     $pdo = new PDO($dsn, $username, $password, $options);
 } catch (PDOException $exception) {
     http_response_code(500);
-    exit('Database connection failed. Please check the XAMPP MySQL service and configuration.');
+    exit('Database connection failed: ' . $exception->getMessage());
 }
